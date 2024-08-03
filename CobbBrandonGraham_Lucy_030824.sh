@@ -1,33 +1,47 @@
 #!/bin/bash
 
-# Define the project directory
-PROJECT_DIR="$HOME/Downloads/my_discord_bot"
+base_dir="$(dirname "$(readlink -f "$0")")"
+bot_dir="$base_dir/bot"
+venv_dir="$HOME/Downloads/venv"
+requirements_file="$base_dir/requirements.txt"
+config_path="$base_dir/config.json"
 
-# Check if the setup has already been run
-if [ -d "$PROJECT_DIR/venv" ]; then
-    echo "Setup already completed. Running the bot..."
-    python "$PROJECT_DIR/main.py"
+# Function to set the bot token
+set_token() {
+    if [ ! -f "$config_path" ]; then
+        read -p "Enter your Discord bot token: " token
+        mkdir -p "$config_dir"
+        echo "{\"token\": \"$token\"}" > "$config_path"
+        echo "Token has been saved to config.json."
+    else
+        if ! grep -q '"token"' "$config_path"; then
+            read -p "Enter your Discord bot token: " token
+            jq --arg token "$token" '.token = $token' "$config_path" > "${config_path}.tmp" && mv "${config_path}.tmp" "$config_path"
+            echo "Token has been updated in config.json."
+        else
+            echo "Token already set in config.json."
+        fi
+    fi
+}
+
+# Check if the script is already in the right directory
+if [ "$(basename "$base_dir")" = "sh" ]; then
+    echo "Setup script is inside 'sh' directory. Doing nothing."
     exit 0
 fi
 
-# Create project directory if it doesn't exist
-mkdir -p "$PROJECT_DIR"
-cd "$PROJECT_DIR"
-
-# Create a virtual environment
-python3 -m venv venv
-
-# Upgrade pip
-source venv/bin/activate
+# Set up the virtual environment
+echo "Setting up virtual environment in Downloads directory..."
+if [ ! -d "$venv_dir" ]; then
+    python3 -m venv "$venv_dir"
+fi
+source "$venv_dir/bin/activate"
 pip install --upgrade pip
+pip install -r "$requirements_file"
 
-# Install requirements
-pip install requests rdkit pubchempy pillow
+# Set the bot token
+set_token
 
-# Reorganize the project
-# Move files as required (customize these lines based on your project structure)
-# mv my_cog.py py/
-# mv game_cog.py py/
-
-# Run the bot
-python main.py
+# Launch the bot
+echo "Launching bot..."
+python "$bot_dir/main.py"
